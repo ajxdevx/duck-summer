@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Psyduck Summer</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="summer-cursor" aria-hidden="true">
+    <div class="summer-cursor-seed summer-cursor-seed-1"></div>
+    <div class="summer-cursor-seed summer-cursor-seed-2"></div>
+    <div class="summer-cursor-seed summer-cursor-seed-3"></div>
+  </div>
+  <button class="wave-toggle" type="button" aria-pressed="false">Wave Sound: Off</button>
+  <div class="container psy">
+    <div class="psy-head">
+      <div class="psy-face">
+        <div class="psy-eye-wrap">
+          <div class="psy-eye psy-eye-left"></div>
+        </div>
+        <div class="psy-eye-wrap">
+          <div class="psy-eye psy-eye-right"></div>
+        </div>
+        <div class="psy-blush psy-blush-left"></div>
+        <div class="psy-blush psy-blush-right"></div>
+      </div>
+      <div class="psy-beak">
+        <div class="psy-beak-nose"></div>
+      </div>
+      <div class="psy-hair"></div>
+    </div>
+    <div class="psy-body">
+      <div class="psy-arm psy-arm-left">
+        <div class="psy-arm-claw"></div>
+      </div>
+      <div class="psy-arm psy-arm-right">
+        <div class="psy-arm-claw"></div>
+      </div>
+      <div class="psy-tube psy-tube-front"></div>
+      <div class="psy-tube psy-tube-back"></div>
+      <div class="psy-torso"></div>
+      <div class="psy-foot psy-foot-left">
+        <div class="psy-foot-web"></div>
+      </div>
+      <div class="psy-foot psy-foot-right">
+        <div class="psy-foot-web"></div>
+      </div>
+      <div class="water-magic"></div>
+      <div class="water-ripple water-ripple-highlight"></div>
+      <div class="water-ripple water-ripple-shadow"></div>
+    </div>
+    <div class="psy-thoughts psy-thoughts-1">
+      <span class="psy-thoughts-symbol">?</span>
+    </div>
+    <div class="psy-thoughts psy-thoughts-2">
+      <span class="psy-thoughts-symbol">?</span>
+    </div>
+  </div>
+  <script>
+    (function () {
+      const supportsPointer = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+      if (!supportsPointer) return;
+
+      document.body.classList.add('use-custom-cursor');
+      const cursorEl = document.querySelector('.summer-cursor');
+      if (!cursorEl) return;
+
+      document.addEventListener('mousemove', (event) => {
+        cursorEl.style.transform = `translate(${event.clientX}px, ${event.clientY}px)`;
+      });
+    })();
+
+    (function () {
+      const button = document.querySelector('.wave-toggle');
+      if (!button) return;
+
+      let audioCtx = null;
+      let source = null;
+      let filter = null;
+      let waveGain = null;
+      let masterGain = null;
+      let swellTimer = null;
+      let isPlaying = false;
+
+      function createNoiseBuffer(ctx, durationSeconds) {
+        const frameCount = Math.floor(ctx.sampleRate * durationSeconds);
+        const buffer = ctx.createBuffer(1, frameCount, ctx.sampleRate);
+        const channel = buffer.getChannelData(0);
+
+        let prev = 0;
+        for (let i = 0; i < frameCount; i += 1) {
+          const white = Math.random() * 2 - 1;
+          prev = (prev + 0.04 * white) / 1.04;
+          channel[i] = prev * 3.5;
+        }
+        return buffer;
+      }
+
+      function scheduleSwell() {
+        if (!audioCtx || !waveGain || !isPlaying) return;
+
+        const now = audioCtx.currentTime;
+        const rise = 1.0 + Math.random() * 0.8;
+        const fall = 1.2 + Math.random() * 1.2;
+        const peak = 0.05 + Math.random() * 0.03;
+        const base = 0.014 + Math.random() * 0.006;
+
+        waveGain.gain.cancelScheduledValues(now);
+        waveGain.gain.setValueAtTime(Math.max(0.008, waveGain.gain.value), now);
+        waveGain.gain.linearRampToValueAtTime(peak, now + rise);
+        waveGain.gain.linearRampToValueAtTime(base, now + rise + fall);
+
+        swellTimer = window.setTimeout(scheduleSwell, 1900 + Math.random() * 1200);
+      }
+
+      function updateButton() {
+        button.textContent = isPlaying ? 'Wave Sound: On' : 'Wave Sound: Off';
+        button.setAttribute('aria-pressed', String(isPlaying));
+      }
+
+      async function startWaveSound() {
+        if (!audioCtx) {
+          audioCtx = new window.AudioContext();
+          masterGain = audioCtx.createGain();
+          masterGain.gain.value = 0.22;
+          masterGain.connect(audioCtx.destination);
+        }
+
+        if (audioCtx.state === 'suspended') {
+          await audioCtx.resume();
+        }
+
+        if (!source) {
+          source = audioCtx.createBufferSource();
+          source.buffer = createNoiseBuffer(audioCtx, 3);
+          source.loop = true;
+          source.playbackRate.value = 0.75;
+
+          filter = audioCtx.createBiquadFilter();
+          filter.type = 'lowpass';
+          filter.frequency.value = 900;
+          filter.Q.value = 0.4;
+
+          waveGain = audioCtx.createGain();
+          waveGain.gain.value = 0.012;
+
+          source.connect(filter);
+          filter.connect(waveGain);
+          waveGain.connect(masterGain);
+          source.start();
+        }
+
+        isPlaying = true;
+        scheduleSwell();
+        updateButton();
+      }
+
+      async function stopWaveSound() {
+        isPlaying = false;
+        if (swellTimer) {
+          clearTimeout(swellTimer);
+          swellTimer = null;
+        }
+
+        if (audioCtx && waveGain) {
+          const now = audioCtx.currentTime;
+          waveGain.gain.cancelScheduledValues(now);
+          waveGain.gain.setValueAtTime(waveGain.gain.value, now);
+          waveGain.gain.linearRampToValueAtTime(0.0001, now + 0.25);
+        }
+
+        updateButton();
+      }
+
+      button.addEventListener('click', async () => {
+        if (isPlaying) {
+          await stopWaveSound();
+        } else {
+          await startWaveSound();
+        }
+      });
+    })();
+  </script>
+</body>
+</html>
