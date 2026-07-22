@@ -13,9 +13,10 @@ A playful summer-themed Psyduck scene built with HTML and SCSS.
 
 ## Project Structure
 
-- `index.html` - page markup and lightweight interaction script
-- `styles.scss` - source styles (SCSS)
-- `styles.css` - compiled CSS output
+- `index.html` - page markup and lightweight interaction scripts
+- `assets/audio/beach-seagulls.mp3` - beach ambient audio
+- `assets/styles/styles.scss` - source styles (SCSS)
+- `assets/styles/styles.css` - compiled CSS output
 
 ## Run Locally
 
@@ -27,11 +28,11 @@ A playful summer-themed Psyduck scene built with HTML and SCSS.
 Compile styles:
 
 ```bash
-npx sass styles.scss styles.css
+npx sass assets/styles/styles.scss assets/styles/styles.css
 ```
 
 Watch mode:
 
 ```bash
-npx sass --watch styles.scss:styles.css
+npx sass --watch assets/styles/styles.scss:assets/styles/styles.css
 ```
